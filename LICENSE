@@ -1,21 +1,67 @@
-MIT License
+import re, logging
+from collections import defaultdict
 
-Copyright (c) 2025 Charandeep reddy
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger("OrbisAI")
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+# Simulate fake unstructured data
+docs = [
+    "Alice manages Project Titan. Bob works on Project Phoenix. Bug 456 affects Phoenix.",
+    "John Doe is also called J. Doe. Team A handles Project Titan and Bug 123.",
+    "Carol is part of Team A. Bug 123 affects Project Titan."
+]
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+# Step 1: Entity Extraction (basic NER)
+#spacy or any other transformers can be inclded here
+entities = set()
+relations = []
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+for doc in docs:
+    people = re.findall(r'\b[A-Z][a-z]+(?:\s[A-Z][a-z]+)?\b', doc) #Alpha-Numeric
+    projects = re.findall(r'Project \w+', doc)
+    bugs = re.findall(r'Bug \d+', doc)
+    teams = re.findall(r'Team \w+', doc)
+    
+    entities.update(people + projects + bugs + teams)
+
+    # Step 2: Find simple relations
+    for person in people:
+        if 'manages' in doc:
+            match = re.search(rf'{person} manages (Project \w+)', doc)
+            if match: relations.append((person, 'manages', match.group(1)))
+        if 'works on' in doc:
+            match = re.search(rf'{person} works on (Project \w+)', doc)
+            if match: relations.append((person, 'works_on', match.group(1)))
+        if 'part of' in doc:
+            match = re.search(rf'{person} is part of (Team \w+)', doc)
+            if match: relations.append((person, 'part_of', match.group(1)))
+    for bug in bugs:
+        match = re.search(rf'{bug} affects (Project \w+)', doc)
+        if match: relations.append((bug, 'affects', match.group(1)))
+
+# Step 3: Main task- Simple Knowledge Graph
+graph = defaultdict(list)
+for src, rel, tgt in relations:
+    graph[src].append((rel, tgt))
+
+# Step 4: Q&A function
+def ask(question):
+    log.info(f"Question: {question}")
+    if "manages" in question:
+        proj = re.search(r'Project \w+', question)
+        for src, links in graph.items():
+            for rel, tgt in links:
+                if rel == 'manages' and proj and tgt == proj.group():
+                    return f"{src} manages {tgt}"
+    if "impacted by" in question:
+        bug = re.search(r'Bug \d+', question)
+        for src, links in graph.items():
+            for rel, tgt in links:
+                if rel == 'affects' and bug and src == bug.group():
+                    return f"{tgt} is impacted by {src}"
+    return "I don't know."
+
+# Step 5: Ask example questions
+log.info(ask("Who manages Project Titan?"))
+log.info(ask("Which project is impacted by Bug 456?"))
