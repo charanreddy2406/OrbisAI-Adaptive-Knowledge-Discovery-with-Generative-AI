@@ -5,6 +5,12 @@ from collections import defaultdict
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("OrbisAI")
 
+# Setup logging to display in Colab
+#logging.basicConfig(level=logging.INFO, force=True)
+#log = logging.getLogger("OrbisAI")
+#log.addHandler(logging.StreamHandler())
+
+
 # Simulate fake unstructured data
 docs = [
     "Alice manages Project Titan. Bob works on Project Phoenix. Bug 456 affects Phoenix.",
